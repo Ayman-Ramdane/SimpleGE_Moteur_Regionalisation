@@ -1,3 +1,5 @@
+#include <iostream>
+#include <regex>
 #include <simplege/simplege.h>
 
 using json = nlohmann::json;
@@ -32,8 +34,40 @@ namespace SimpleGE
     }
 
     // ***TODO***: Implémenter la substitution de clés
-    fmt::print("mergedContext: {}\n", json(mergedContext).dump());
 
-    return localized->second;
+    auto message = localized->second;
+
+    size_t start = message.find('{', 0);
+    size_t end = message.find('}', 0);
+
+    // Entrer dans la boucle si des accolades sont repérées dans le message
+    while (start != std::string::npos && end != std::string::npos)
+    {
+      // Vérifier que les accolades sont dans le bon sens
+      if (start >= end)
+      {
+        end = message.find('}', end + 1);
+        // Stopper la boucle s'il n'y a pas d'autre accolade fermante
+        if (end == std::string::npos)
+        {
+          break;
+        }
+      }
+
+      // Récupérer la clé placée entre  accolades
+      auto messageKey = message.substr(start + 1, end - start - 1);
+      auto newMessage = mergedContext.find(messageKey)->second;
+
+      // Effacer les accolades et substituer les termes
+      message.erase(start, 1);
+      message.erase(end - 1, 1);
+      message = std::regex_replace(message, std::regex(messageKey), newMessage);
+
+      // Incrémenter les index
+      start = message.find('{', start + 1);
+      end = message.find('}', end + 1);
+    }
+
+    return message;
   }
 } // namespace SimpleGE
